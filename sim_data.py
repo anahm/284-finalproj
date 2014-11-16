@@ -6,8 +6,12 @@ used for the overall network inference algorithm.
 
 """
 
+from scipy import stats
+
+import csv
+import matplotlib.pyplot as plt
 import networkx as nx
-import stats from scipy
+import random
 
 
 """
@@ -18,17 +22,14 @@ make_network
     @param: a, b - parameters for gamma distribution
     @ret: networkx graph G with transmission rates in 'trans_rate' attribute
 """
-def make_network(a, b):
+def make_network(num_nodes, prob_edge_creation, a, b):
     # create graph
     # XXX see link below for addl random graphs
     # http://networkx.lanl.gov/reference/generators.html#module-networkx.generators.random_graphs
-    num_nodes = 10
-    prob_edge_creation = 0.5
     G = nx.erdos_renyi_graph(num_nodes, prob_edge_creation, directed=True)
 
     # assign transmission values per edge
     for src,dest in G.edges():
-        # XXX does this need to be a value between 0 and 1?
         trans_rate = stats.gamma.rvs(a, b)
         G[src][dest]['trans_rate'] = trans_rate
 
@@ -42,26 +43,45 @@ make_cascade
     @param: networkx graph G with transmission rates as weights
     @ret: list of tuples (node_id, infection_time) that has at least one element
 """
-def make_cascade(G):
-    # randomly select source node
-    src = 
+def make_cascade(G, max_time, show_vis):
+    time_step = 0
 
-    infection_lst = [(src, 0)]
-    to_visit = [src]
-    time_step = 1
+    # initialization with randomly selected source node
+    src = random.choice(G.nodes())
+    infection_dict = {}
+    infection_dict[src] = time_step
 
-    while len(to_visit) > 0:
-        for node in to_visit:
+    # for vis-test purposes
+    cascade_edges = []
+
+    # XXX is there a better way to cut off the cascade creation process?
+    while time_step < max_time:
+        time_step += 1
+
+        # assuming any node can infect any neighboring node
+        for node in infection_dict.keys():
             for n in G.neighbors(node):
+                if n in infection_dict:
+                    # already infected
+                    continue
+
                 # scale = 1/lambda
-                trans_rate = n['trans_rate']
-                print trans_rate
+                trans_rate = G[node][n]['trans_rate']
                 prob_infection = stats.expon.cdf(time_step,
                         scale=1.0 / trans_rate)
 
+                if stats.uniform.rvs(0, 1) <= prob_infection:
+                    # infected!
+                    infection_dict[n] = time_step
+                    cascade_edges.append((node, n))
 
+    if show_vis:
+        node_color = ['red' if node == src else '#ADD8E6' for node in G.nodes()]
+        edge_color = ['red' if edge in cascade_edges else 'black' for edge in
+                G.edges()]
+        print_graph(G, node_color, edge_color)
 
-    pass
+    return infection_dict.items()
 
 
 """
@@ -71,19 +91,20 @@ cascades_to_file
     @param: outfile name, dictionary (cascade_id --> infection_lst)
 """
 def cascades_to_file(outfile_name, cascade_dict):
-    """
-    outfile = open(outfile_name, w+)
+    outcsv = csv.writer(open(outfile_name, 'w+'), delimiter=';',
+            quoting = csv.QUOTE_NONE)
 
     # print
     for key in cascade_dict.keys():
         # cascade_id, cascade_name (same)
-        writeline([key, key])
+        key_str = str(key)
+        outcsv.writerow([key_str + ',' + key_str])
+
+    outcsv.writerow([])
 
     for key, lst in cascade_dict.iteritems():
         lst_str = str(lst)[1:-1]
-        writeline([key, lst_str])
-    """
-
+        outcsv.writerow([key, lst_str])
 
 
 """
@@ -91,27 +112,62 @@ make_infopath_input
     Function to create the proper file input for the InfoPath algorithm with a
     simulated dataset.
 
-    @param: n/a
+    @param: show_vis - boolean to show graphs depicting the network (only works
+    for small graphs!)
     @ret: n/a
 """
-def make_infopath_input():
+def make_infopath_input(show_vis=False):
+    # variables
+    num_nodes = 10
+    prob_edge_creation = 0.5
+    alpha_param = 2
+    beta_param = 2
+    num_cascades = 5
+    cascade_max_time = 5
+    outfile = 'sim_data.txt'
+
     # make_network
-    alpha = 2
-    beta = 2
-    G = make_network(alpha, beta)
+    G = make_network(num_nodes, prob_edge_creation, alpha_param, beta_param)
+
+    if show_vis:
+        # show regular graph
+        print_graph(G, '#ADD8E6', 'black')
 
     # convert to infopath file input
     cascade_dict = {}
 
-    num_cascades = 5
     # given this network, create a cascade
     for i in xrange(num_cascades):
-        infection_lst = make_cascade(G)
+        infection_lst = make_cascade(G, cascade_max_time, show_vis)
         cascade_dict[i] = infection_lst
 
+    cascades_to_file(outfile, cascade_dict)
 
-    print 'Saved To: ' + 'outfile name'
-    pass
+    print 'Saved To: ' + outfile
 
 
+"""
+print_graph
+    Function to print the graph.
 
+    @param: graph G, node_color, edge_color
+"""
+def print_graph(G, node_color, edge_color):
+    edge_labels=dict([((u,v,),int(d['trans_rate']))
+                 for u,v,d in G.edges(data=True)])
+    pos=nx.spring_layout(G)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+
+    nx.draw_networkx(G, pos, with_labels=True,
+            # width=[G[a][b]['trans_rate'] for a,b in G.edges()],
+            node_color=node_color, edge_color=edge_color)
+    plt.show()
+
+
+def main():
+    # where the magic begins...
+    make_infopath_input(show_vis=True)
+
+
+if __name__ == "__main__":
+    main()
