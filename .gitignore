@@ -1,2 +1,4 @@
 *.pyc
 *.txt
+infopath/*
+.DS_Store
