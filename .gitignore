@@ -1,4 +1,4 @@
 *.pyc
 *.txt
-infopath/*
+snap-master/
 .DS_Store
