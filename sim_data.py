@@ -11,6 +11,7 @@ from scipy import stats
 import csv
 import matplotlib.pyplot as plt
 import networkx as nx
+import os
 import random
 
 
@@ -117,13 +118,38 @@ network_to_file
 
     @param: outfile name, networkx graph G
 """
-def network_to_file(outfile_name, G):
-    outcsv = csv.writer(open(outfile_name, 'w+'), delimiter=',')
+def network_to_file(network_file, truth_file, G):
+    outcsv = csv.writer(open(network_file, 'w+'), delimiter=',')
 
     # print
     for node in G.nodes():
         # node_id, node_name (same)
         outcsv.writerow([node, node])
+
+    # also printing true network
+    outcsv = csv.writer(open(truth_file, 'w+'), delimiter=',')
+
+    for src, dest in G.edges():
+        outcsv.writerow([src, dest, G[src][dest]['trans_rate']])
+
+
+"""
+write_files
+    Function to write all of the necessary files into a directory.
+
+    @param: network_name, cascade_dict (cascade_id -> lst), graph G
+"""
+def write_files(network_name, cascade_dict, G):
+    if not os.path.exists(network_name):
+        os.makedirs(network_name)
+
+    network_name = network_name + '/' + network_name
+    # XXX write out parameter info to a readme
+    readme = open(network_name + '_readme.txt', 'w+')
+    readme.write(network_name)
+
+    cascades_to_file(network_name + '_cascades.txt', cascade_dict)
+    network_to_file(network_name + '_network.txt', network_name + '_truth.txt', G)
 
 
 """
@@ -160,8 +186,7 @@ def make_infopath_input(show_vis=False):
         infection_lst = make_cascade(G, cascade_max_time, show_vis)
         cascade_dict[i] = infection_lst
 
-    cascades_to_file(network_name + '_cascades.txt', cascade_dict)
-    network_to_file(network_name + '_network.txt', G)
+    write_files(network_name, cascade_dict, G)
 
     print 'Saved To: ' + network_name
 
@@ -186,7 +211,7 @@ def print_graph(G, node_color, edge_color):
 
 def main():
     # where the magic begins...
-    make_infopath_input(show_vis=False)
+    make_infopath_input(show_vis=True)
 
 
 if __name__ == "__main__":
