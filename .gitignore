@@ -1,4 +1,6 @@
 *.pyc
 *.txt
 snap-master/
+data/
 .DS_Store
+
