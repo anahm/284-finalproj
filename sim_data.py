@@ -103,8 +103,27 @@ def cascades_to_file(outfile_name, cascade_dict):
     outcsv.writerow([])
 
     for key, lst in cascade_dict.iteritems():
-        lst_str = str(lst)[1:-1]
+        lst_str = ",".join("%d,%d" % tup for tup in lst)
+        print lst
+
+        # lst_str = str(lst).strip('[]')
         outcsv.writerow([key, lst_str])
+
+
+"""
+network_to_file
+    Function to write the nodes of the network to the proper Infopath input
+    format.
+
+    @param: outfile name, networkx graph G
+"""
+def network_to_file(outfile_name, G):
+    outcsv = csv.writer(open(outfile_name, 'w+'), delimiter=',')
+
+    # print
+    for node in G.nodes():
+        # node_id, node_name (same)
+        outcsv.writerow([node, node])
 
 
 """
@@ -120,11 +139,11 @@ def make_infopath_input(show_vis=False):
     # variables
     num_nodes = 10
     prob_edge_creation = 0.5
-    alpha_param = 2
-    beta_param = 2
-    num_cascades = 5
-    cascade_max_time = 5
-    outfile = 'sim_data.txt'
+    alpha_param = 0.5
+    beta_param = 0.5
+    num_cascades = 10
+    cascade_max_time = 10
+    network_name = 'sim_data'
 
     # make_network
     G = make_network(num_nodes, prob_edge_creation, alpha_param, beta_param)
@@ -141,9 +160,10 @@ def make_infopath_input(show_vis=False):
         infection_lst = make_cascade(G, cascade_max_time, show_vis)
         cascade_dict[i] = infection_lst
 
-    cascades_to_file(outfile, cascade_dict)
+    cascades_to_file(network_name + '_cascades.txt', cascade_dict)
+    network_to_file(network_name + '_network.txt', G)
 
-    print 'Saved To: ' + outfile
+    print 'Saved To: ' + network_name
 
 
 """
@@ -166,7 +186,7 @@ def print_graph(G, node_color, edge_color):
 
 def main():
     # where the magic begins...
-    make_infopath_input(show_vis=True)
+    make_infopath_input(show_vis=False)
 
 
 if __name__ == "__main__":
