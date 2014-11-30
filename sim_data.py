@@ -39,12 +39,13 @@ def make_network(num_nodes, prob_edge_creation, a, b):
 
 """
 make_cascade
-    Function to simulate a cascade traversing a network.
+    Function to simulate a cascade traversing a network based on the model used
+    in the NetRate and InfoPath papers.
 
     @param: networkx graph G with transmission rates as weights
     @ret: list of tuples (node_id, infection_time) that has at least one element
 """
-def make_cascade(G, max_time, show_vis):
+def make_cascade(G, max_time, show_vis, voter_model=False):
     time_step = 0
 
     # initialization with randomly selected source node
@@ -66,9 +67,12 @@ def make_cascade(G, max_time, show_vis):
                     # already infected
                     continue
 
-                # scale = 1/lambda
-                trans_rate = G[node][n]['trans_rate']
-                prob_infection = stats.expon.cdf(time_step,
+                if voter_model:
+                    prob_infection = G.degree(n)
+                else:
+                    # scale = 1/lambda
+                    trans_rate = G[node][n]['trans_rate']
+                    prob_infection = stats.expon.cdf(time_step,
                         scale=1.0 / trans_rate)
 
                 if stats.uniform.rvs(0, 1) <= prob_infection:
@@ -183,7 +187,9 @@ def make_infopath_input(show_vis=False):
 
     # given this network, create a cascade
     for i in xrange(num_cascades):
-        infection_lst = make_cascade(G, cascade_max_time, show_vis)
+        # XXX toggling between the voter_model
+        voter_model = True
+        infection_lst = make_cascade(G, cascade_max_time, show_vis, voter_model)
         cascade_dict[i] = infection_lst
 
     write_files(network_name, cascade_dict, G)
