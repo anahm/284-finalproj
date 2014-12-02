@@ -60,11 +60,12 @@ def date_to_step(df, min_date):
 
 """
 df_to_txt
-    Function to convert the dataframe of timesteps to cascades.
+    Function to convert the dataframe of timesteps to cascades and network data
+    files necessary as input to the InfoPath algorithm.
 
 """
-def df_to_txt(df, outfile_name):
-    outcsv = csv.writer(open(outfile_name, 'w+'), delimiter=';',
+def df_to_txt(df, network_name):
+    outcsv = csv.writer(open(network_name + '_cascades.txt', 'w+'), delimiter=';',
             quoting = csv.QUOTE_NONE)
 
     for key in xrange(1, 5):
@@ -84,6 +85,14 @@ def df_to_txt(df, outfile_name):
         outcsv.writerow([clade, lst_str[1:]])
 
 
+    # writing the network to a file as well
+    outcsv = csv.writer(open(network_name + '_network.txt', 'w+'), quoting =
+            csv.QUOTE_NONE)
+
+    for i in df.index:
+        outcsv.writerow([i, i])
+
+
 def main():
     df = pd.read_csv('ebola_data.csv')
 
@@ -92,7 +101,7 @@ def main():
 
     df.to_csv('ebola_cleaned.csv', index=False)
 
-    df_to_txt(df, 'ebola_cascades.txt')
+    df_to_txt(df, 'ebola')
 
 
 if __name__ == "__main__":
