@@ -4,6 +4,7 @@ ebola_data_clean.py
 File to take the strings from the Ebola network and convert into timestamps.
 """
 
+import csv
 import datetime
 import pandas as pd
 import re
@@ -57,13 +58,41 @@ def date_to_step(df, min_date):
     df['timestep'] = t_arr
 
 
+"""
+df_to_txt
+    Function to convert the dataframe of timesteps to cascades.
+
+"""
+def df_to_txt(df, outfile_name):
+    outcsv = csv.writer(open(outfile_name, 'w+'), delimiter=';',
+            quoting = csv.QUOTE_NONE)
+
+    for key in xrange(1, 5):
+        # cascade_id, cascade_name (same)
+        key_str = str(key)
+        outcsv.writerow([key_str + ',' + key_str])
+
+    outcsv.writerow([])
+
+    grouped_df = df.groupby('clade')
+
+    for clade, group in grouped_df:
+        lst_str = ''
+        for index, row in group.iterrows():
+            lst_str = lst_str + ',' + str(index) + ',' + str(row['timestep'])
+
+        outcsv.writerow([clade, lst_str[1:]])
+
+
 def main():
     df = pd.read_csv('ebola_data.csv')
 
     min_date = str_to_date(df)
     date_to_step(df, min_date)
 
-    df.to_csv('ebola_data_output.csv', index=False)
+    df.to_csv('ebola_cleaned.csv', index=False)
+
+    df_to_txt(df, 'ebola_cascades.txt')
 
 
 if __name__ == "__main__":
