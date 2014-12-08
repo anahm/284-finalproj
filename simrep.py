@@ -1,9 +1,7 @@
 """
 sim_data.py
-
 File with functions related to creating/analyzing simulated network data to be
 used for the overall network inference algorithm.
-
 """
 
 from scipy import stats
@@ -17,12 +15,16 @@ import os
 import random
 import subprocess
 
+import sys
+from IPython.core import ultratb
+sys.excepthook = ultratb.FormattedTB(mode='Verbose',
+color_scheme='Linux', call_pdb=1)
+
 
 """
 make_network
     Function that creates a random directed graph and assigns transmission rates
     to each edge based on a gamma distribution.
-
     @param: a, b - parameters for gamma distribution
     @ret: networkx graph G with transmission rates in 'trans_rate' attribute
 """
@@ -34,7 +36,7 @@ def make_network(num_nodes, prob_edge_creation, a, b):
 
     # assign transmission values per edge
     for src,dest in G.edges():
-        trans_rate = stats.gamma.rvs(a, b)
+        trans_rate = stats.gamma.rvs(a, scale=1./b)
         G[src][dest]['trans_rate'] = trans_rate
 
     return G
@@ -44,7 +46,6 @@ def make_network(num_nodes, prob_edge_creation, a, b):
 make_cascade
     Function to simulate a cascade traversing a network based on the model used
     in the NetRate and InfoPath papers.
-
     @param: networkx graph G with transmission rates as weights
     @ret: list of tuples (node_id, infection_time) that has at least one element
 """
@@ -95,7 +96,6 @@ def make_cascade(G, max_time, show_vis, voter_model=False):
 """
 cascades_to_file
     Function to write the cascades to the proper InfoPath input format.
-
     @param: outfile name, dictionary (cascade_id --> infection_lst)
 """
 def cascades_to_file(outfile_name, cascade_dict):
@@ -122,7 +122,6 @@ def cascades_to_file(outfile_name, cascade_dict):
 network_to_file
     Function to write the nodes of the network to the proper Infopath input
     format.
-
     @param: outfile name, networkx graph G
 """
 def network_to_file(network_file, truth_file, G):
@@ -143,7 +142,6 @@ def network_to_file(network_file, truth_file, G):
 """
 write_files
     Function to write all of the necessary files into a directory.
-
     @param: network_name, cascade_dict (cascade_id -> lst), graph G
 """
 def write_files(dir_name, network_name, cascade_dict, G):
@@ -163,7 +161,6 @@ def write_files(dir_name, network_name, cascade_dict, G):
 make_infopath_input
     Function to create the proper file input for the InfoPath algorithm with a
     simulated dataset.
-
     @param: show_vis - boolean to show graphs depicting the network (only works
     for small graphs!)
     @ret: n/a
@@ -172,8 +169,8 @@ def make_infopath_input(dir_name, network_name, show_vis=False):
     # variables
     num_nodes = 10
     prob_edge_creation = 0.5
-    alpha_param = 0.5
-    beta_param = 0.5
+    alpha_param = 1.
+    beta_param = 2.
     num_cascades = 10
     cascade_max_time = 10
 
@@ -203,7 +200,6 @@ def make_infopath_input(dir_name, network_name, show_vis=False):
 """
 print_graph
     Function to print the graph.
-
     @param: graph G, node_color, edge_color
 """
 def print_graph(G, node_color, edge_color):
@@ -222,11 +218,11 @@ def update_wrapper(infoname, priorname, outname, outavgname):
     G = update(infoname, priorname)
     for e in G.edges():
         print G[e[0]][e[1]]['params']
-        print e, stats.gamma(G[e[0]][e[1]]['params'][0], scale=G[e[0]][e[1]]['params'][1]).stats(moments='m')
+        print e, stats.gamma(G[e[0]][e[1]]['params'][0], scale=1./G[e[0]][e[1]]['params'][1]).stats(moments='m')
     nx.write_edgelist(G,outname)
     A = G.copy()
     for e in A.edges():
-        p = stats.gamma(G[e[0]][e[1]]['params'][0], scale=G[e[0]][e[1]]['params'][1]).stats(moments='m')
+        p = stats.gamma(G[e[0]][e[1]]['params'][0], scale=1./G[e[0]][e[1]]['params'][1]).stats(moments='m')
 #       if p == nan: A[e[0]][e[1]]['weight'] = 0
         A[e[0]][e[1]]['weight'] = p
     nx.write_weighted_edgelist(A,outavgname,delimiter=',')
@@ -235,9 +231,10 @@ def update_wrapper(infoname, priorname, outname, outavgname):
 def main():
     num_iter = 10
 
-    outcsv = csv.writer(open('sim_rep_mae.csv', 'w+'), delimiter=',',
+    w = open('sim_rep_mae.csv', 'w+')
+    outcsv = csv.writer(w, delimiter=',',
             quoting = csv.QUOTE_NONE)
-    outcsv.writerow(['infopath_mae', 'algo_mae'])
+    outcsv.writerow(['infopath_mae', 'algo_mae', 'prior_mae'])
 
     for i in xrange(num_iter):
         # where the magic begins...
@@ -255,10 +252,7 @@ def main():
             '-i:' + cascade_file,
             '-n:' + network_file,
             '-o:' + infoname,
-            '-ts:10',
-            '-it:0',
-            # '-tt:10',
-            '-s:0'
+            '-ts:0.5', '-it:0', '-tt:10', '-s:0'
         ]
         subprocess.call(arg_lst)
 
@@ -286,7 +280,16 @@ def main():
 
         algo_mae = mae(updated_lst, truth_lst, node_names)
 
-        outcsv.writerow([infopath_mae, algo_mae])
+        # mae for prior net
+        prior_lst = np.copy(truth_lst)
+        prior_lst[:,2] = .5
+        prior_mae = mae(prior_lst,truth_lst,node_names)
+
+        outcsv.writerow([infopath_mae, algo_mae, prior_mae])
+
+    w.close()
+    results = np.genfromtxt('sim_rep_mae.csv', delimiter=',')
+    print np.mean(results[1:], axis=0)
 
 
 if __name__ == "__main__":

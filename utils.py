@@ -1,8 +1,6 @@
 """
 utils.py
-
 Useful functions for network recovery/inference.
-
 """
 
 from scipy import stats
@@ -18,7 +16,6 @@ from collections import defaultdict
 """
 nodes
     Function to get graph nodes from InfoPath input.
-
     @param: file name
     @ret: list of nodes
 """
@@ -38,7 +35,6 @@ def nodes(fname):
 """
 mae
     Function to calculate mean abs error.
-
     @param: recovered network, true network as edgelists of [u,v,weight]
     @ret: MAE value
 """
@@ -52,7 +48,6 @@ def mae(estimate, truth, node_names):
 """
 pair_dist
     Calculates pairwise (Hamming) distances between genetic sequences.
-
     @param: numpy array of sequences
     @ret: pairwise distance matrix
 """
