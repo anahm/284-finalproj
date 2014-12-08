@@ -34,7 +34,7 @@ def make_network(num_nodes, prob_edge_creation, a, b):
 
     # assign transmission values per edge
     for src,dest in G.edges():
-        trans_rate = stats.gamma.rvs(a, scale=b)
+        trans_rate = stats.gamma.rvs(a, b)
         G[src][dest]['trans_rate'] = trans_rate
 
     return G
@@ -255,7 +255,8 @@ def main():
             '-i:' + cascade_file,
             '-n:' + network_file,
             '-o:' + infoname,
-            '-ts:0.5', '-it:0', '-tt:10', '-s:0'
+            # '-ts:0.5', '-it:0', '-tt:10',
+            '-s:0'
         ]
         subprocess.call(arg_lst)
 
