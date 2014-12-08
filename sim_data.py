@@ -7,12 +7,14 @@ used for the overall network inference algorithm.
 """
 
 from scipy import stats
+from update import update
 
 import csv
 import matplotlib.pyplot as plt
 import networkx as nx
 import os
 import random
+import subprocess
 
 
 """
@@ -31,7 +33,7 @@ def make_network(num_nodes, prob_edge_creation, a, b):
 
     # assign transmission values per edge
     for src,dest in G.edges():
-        trans_rate = stats.gamma.rvs(a, b)
+        trans_rate = stats.gamma.rvs(a, scale=b)
         G[src][dest]['trans_rate'] = trans_rate
 
     return G
@@ -143,11 +145,11 @@ write_files
 
     @param: network_name, cascade_dict (cascade_id -> lst), graph G
 """
-def write_files(network_name, cascade_dict, G):
-    if not os.path.exists(network_name):
-        os.makedirs(network_name)
+def write_files(dir_name, network_name, cascade_dict, G):
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
 
-    network_name = network_name + '/' + network_name
+    network_name = dir_name + '/' + network_name
     # XXX write out parameter info to a readme
     readme = open(network_name + '_readme.txt', 'w+')
     readme.write(network_name)
@@ -165,7 +167,7 @@ make_infopath_input
     for small graphs!)
     @ret: n/a
 """
-def make_infopath_input(show_vis=False):
+def make_infopath_input(dir_name, network_name, show_vis=False):
     # variables
     num_nodes = 10
     prob_edge_creation = 0.5
@@ -173,7 +175,6 @@ def make_infopath_input(show_vis=False):
     beta_param = 0.5
     num_cascades = 10
     cascade_max_time = 10
-    network_name = 'sim_data'
 
     # make_network
     G = make_network(num_nodes, prob_edge_creation, alpha_param, beta_param)
@@ -192,9 +193,10 @@ def make_infopath_input(show_vis=False):
         infection_lst = make_cascade(G, cascade_max_time, show_vis, voter_model)
         cascade_dict[i] = infection_lst
 
-    write_files(network_name, cascade_dict, G)
+    write_files(dir_name, network_name, cascade_dict, G)
 
     print 'Saved To: ' + network_name
+    return network_name
 
 
 """
@@ -215,9 +217,49 @@ def print_graph(G, node_color, edge_color):
     plt.show()
 
 
+def update_wrapper(infoname, priorname, outname, outavgname):
+    G = update(infoname, priorname)
+    for e in G.edges():
+        print G[e[0]][e[1]]['params']
+        print e, stats.gamma(G[e[0]][e[1]]['params'][0], scale=G[e[0]][e[1]]['params'][1]).stats(moments='m')
+    nx.write_edgelist(G,outname)
+    A = G.copy()
+    for e in A.edges():
+        p = stats.gamma(G[e[0]][e[1]]['params'][0], scale=G[e[0]][e[1]]['params'][1]).stats(moments='m')
+#       if p == nan: A[e[0]][e[1]]['weight'] = 0
+        A[e[0]][e[1]]['weight'] = p
+    nx.write_weighted_edgelist(A,outavgname,delimiter=',')
+
+
 def main():
-    # where the magic begins...
-    make_infopath_input(show_vis=True)
+    num_iter = 1
+
+    for i in xrange(num_iter):
+        # where the magic begins...
+        dir_name = str(i)
+        network_name = 'sim'
+        make_infopath_input(dir_name, network_name, show_vis=False)
+
+        cascade_file = dir_name + '/' + network_name + '_cascades.txt'
+        network_file = dir_name + '/' + network_name + '_network.txt'
+        infoname = dir_name + '/' + network_name + '_inferred'
+
+        # XXX running infopath
+        arg_lst = [
+            './infopath',
+            '-i:' + cascade_file,
+            '-n:' + network_file,
+            '-o:' + infoname,
+            '-ts:0.5', '-it:0', '-tt:10', '-s:0'
+        ]
+        subprocess.call(arg_lst)
+
+        infoname = infoname + '.txt'
+        priorname = dir_name + '/' + network_name + '_truth.txt'
+        outname = dir_name + '/' + network_name + '_updated.txt'
+        outavgname = dir_name + '/' + network_name + '_updated_avg.txt'
+
+        update_wrapper(infoname, priorname, outname, outavgname)
 
 
 if __name__ == "__main__":
