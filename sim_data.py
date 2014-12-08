@@ -7,7 +7,8 @@ used for the overall network inference algorithm.
 """
 
 from scipy import stats
-from update import update
+from update import *
+from utils import *
 
 import csv
 import matplotlib.pyplot as plt
@@ -232,7 +233,11 @@ def update_wrapper(infoname, priorname, outname, outavgname):
 
 
 def main():
-    num_iter = 1
+    num_iter = 10
+
+    outcsv = csv.writer(open('sim_rep_mae.csv', 'w+'), delimiter=',',
+            quoting = csv.QUOTE_NONE)
+    outcsv.writerow(['infopath_mae', 'algo_mae'])
 
     for i in xrange(num_iter):
         # where the magic begins...
@@ -260,6 +265,25 @@ def main():
         outavgname = dir_name + '/' + network_name + '_updated_avg.txt'
 
         update_wrapper(infoname, priorname, outname, outavgname)
+
+        # calculating mae
+        node_names = nodes(cascade_file)
+
+        # mae for infopath
+        inferred = load_infopath(infoname)
+        inf_lst = [(e[0], e[1], inferred[e[0]][e[1]]['weight']) for e in
+                inferred.edges()]
+
+        truth_lst = np.genfromtxt(priorname, delimiter=',')
+
+        infopath_mae = mae(inf_lst, truth_lst, node_names)
+
+        # mae for new algo
+        updated_lst = np.genfromtxt(outavgname, delimiter=',')
+
+        algo_mae = mae(updated_lst, truth_lst, node_names)
+
+        outcsv.writerow([infopath_mae, algo_mae])
 
 
 if __name__ == "__main__":

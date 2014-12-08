@@ -42,6 +42,7 @@ def load_infopath(fname):
     # Add edges to graph
     for e in edges_clean:
         G.add_edge(e[0][0],e[0][1], weight=e[1])
+
     return G
 
 
